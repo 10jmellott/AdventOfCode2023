@@ -12,26 +12,32 @@ Commonly used imports throughout the application will make things a little easie
 
 
 ```python
+# Common Imports
 from functools import reduce
 import re
 ```
 
 
 ```python
-# File Extensions
-def readlinesext(f):
-    return list(map(lambda l: l.strip(), f))
-def readlinesnl(f):
-    return list(map(lambda l: l.strip('\n'), f))
+# Basic Utility functions
+
+def maplist(f, l):
+    return list(map(f, l))
 ```
 
 
 ```python
+
+# File Extensions
+def readlinesext(f):
+    return maplist(lambda l: l.strip(), f)
+def readlinesnl(f):
+    return  maplist(lambda l: l.strip('\n'), f)
+
 # Data Read Functions
 def openfile(name, testdata = False):
     dir = 'test' if testdata else 'data'
     return open(f'{dir}/{name}.txt', 'r')
-
 ```
 
 # Day 1: Trebuchet?!
@@ -135,10 +141,10 @@ f = openfile('02')
 lines = readlinesext(f)
 
 # Discard the game # as it's the same as the index
-lines = list(map(lambda l: l.split(': ')[1], lines))
+lines = maplist(lambda l: l.split(': ')[1], lines)
 
 # Each line is single game in the format of 'Game #: # color, # color; # color; # color, # color, # color. Split each game into a set of cubes separated by ; and then split each color into a set of colors separated by ,
-games = list(map(lambda l: list(map(lambda m: list(map(lambda n: n.split(' '), list(m.split(', ')))), l.split('; '))), lines))
+games = maplist(lambda l: maplist(lambda m: maplist(lambda n: n.split(' '), list(m.split(', '))), l.split('; ')), lines)
 ```
 
 Now that we have the result of each game split out, the elf would first like to know which games would have been possible if the bag contained only 12 red cubes, 13 green cubes, and 14 blue cubes? In other words, which games contain a set with more than 12 red, 13 green, or 14 blue.
@@ -206,5 +212,110 @@ sum(map(lambda m: m['red'] * m['green'] * m['blue'], gamemaximums))
 
 
     70950
+
+
+
+# Day 3: Gear Ratios
+
+The cube game elf takes us to a gondola lift (is that a real thing?) where we meet another mechanic elf trying to fix the gondola lift. In order to fix it, we have to find a missing part. We start with the engine schematic to outline which parts go where and, thus, which one is missing.
+
+Parts are broken down as numbers, separated by 'empty space' designated as a period (.). Any number adjacent to a symbol (non-numeric and non-period) is considered a 'valid part'. We want the sum of all valid part numbers. 
+
+
+```python
+f = openfile('03')
+lines = readlinesext(f)
+
+# Foreach line in lines, capture all number groups
+part_numbers = maplist(lambda l: [(m.start(0), m.end(0)) for m in re.finditer(r'\d+', l)], lines)
+# Capture each non '.' and non '#' characters from each line
+# symbol_positions = maplist(lambda l: [(i, m.start(0)) for m in re.finditer(r'[^\.\d]', l)], lines)
+```
+
+Now, for each part number we need to outline the part to see if we find a symbol in the outline which would indicate the part number is currently valid. In this way we limit scope of parts the mechanic elf needs to check.
+
+
+```python
+def in_range(x, y):
+    return not (x < 0 or y < 0 or y >= len(lines) or x >= len(lines[y]))
+
+def is_symbol(x, y, gear = False):
+    # Bounds checking
+    if not in_range(x, y):
+        return False
+    # Check if position is gear
+    if gear:
+        return lines[y][x] == '*'
+    
+    # return True if the character at (x, y) in lines is not a '.' or r'\d'
+    if lines[y][x] == '.':
+        return False
+    elif re.match(r'\d', lines[y][x]):
+        return False
+    return True
+
+def is_valid_part(xstart, xend, y):
+    # return True if any character in lines[y-1:y+1][xstart:xend] is_symbol
+    for y in range(y - 1, y + 2):
+        for x in range(xstart - 1, xend + 1):
+            if is_symbol(x, y):
+                return True
+    return False
+```
+
+We need to sum up the value of all valid parts next.
+
+
+```python
+validsum = 0
+for y in range(len(part_numbers)):
+    for partcoords in part_numbers[y]:
+        xstart, xend = partcoords
+        validsum += int(lines[y][xstart:xend]) if is_valid_part(xstart, xend, y) else 0
+validsum
+```
+
+
+
+
+    544664
+
+
+
+**Part 2:** So, we found the missing part with that, but unfortunately there's another small problem. One of the gears is incorrect. A gear in this case is the '*' symbol. So, we need to run through all the parts again and pick out all the gears that are connecting exactly two parts. We can do this by looping through the same things as the first part, but marking down any connected gears for each part.
+
+
+```python
+gears = {}
+
+def get_gears(xstart, xend, y):
+    part_gears = []
+    # return True if any character in lines[y-1:y+1][xstart:xend] is_symbol
+    for y in range(y - 1, y + 2):
+        for x in range(xstart - 1, xend + 1):
+            if is_symbol(x, y, True):
+                part_gears.append((x, y))
+    return part_gears
+
+for y in range(len(part_numbers)):
+    for partcoords in part_numbers[y]:
+        xstart, xend = partcoords
+        part_gears = get_gears(xstart, xend, y)
+        for gear in part_gears:
+            if gear not in gears:
+                gears[gear] = []
+            gears[gear].append(int(lines[y][xstart:xend]))
+
+ratio_sum = 0
+for gear in gears:
+    if len(gears[gear]) == 2:
+        ratio_sum += gears[gear][0] * gears[gear][1]
+ratio_sum
+```
+
+
+
+
+    84495585
 
 
