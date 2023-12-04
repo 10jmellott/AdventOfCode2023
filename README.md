@@ -319,3 +319,81 @@ ratio_sum
     84495585
 
 
+
+# Day 4: Scratchcards
+
+We take the gondola up and it takes us to 'Island Island' where an elf there directs us to their gardener to ask about the water situation. Reaching the gardener requires a proper boat, and this elf has one but needs some help with his scratchcards, so quid-pro-quo we'll help him with his scratchcards and he'll lend us his boat.
+
+Each scratchcard is split into winning numbers and card numbers separated with a |. The points of a card is 2 ^ (len(card numbers matching winning numbers) - 1) as long as the number of matches is greater than one. The score is 0 otherwise. We want to find the sum of points from all cards.
+
+
+```python
+f = openfile('04')
+lines = readlinesnl(f)
+lines = maplist(lambda l: l.split(': ')[1].split(' | '), lines)
+
+def split_ints(line):
+    return maplist(int, filter(lambda l: l != '', line.split(' ')))
+cards = maplist(lambda l: maplist(lambda m: split_ints(m), l), lines)
+```
+
+Now, for each 'game' we need to find the number of intersections in the set of winning numbers and the game results.
+
+
+```python
+def num_matches(winning, mynumbers):
+    winning_total = 0
+    for number in mynumbers:
+        if number in winning:
+            winning_total += 1
+    return winning_total
+
+def score_card(card):
+    winning, mynumbers = card
+    matches = num_matches(winning, mynumbers)
+    if matches > 0:
+        return pow(2, matches - 1)
+    return 0
+
+points = 0
+for card in cards:
+    points += score_card(card)
+points
+```
+
+
+
+
+    22488
+
+
+
+**Part 2:** So, apparently the number of matches on each card just win you another instance of the 'next' numbered card. So we need to iterate through the cards and increase the number of 'each card' down the line for each match of the prior cards.
+
+
+```python
+# Each card has at least one copy, but we need to know how many matches each card has to increase the number of copies of the cards following that card
+matched = { }
+
+for i in range(len(cards)):
+    if i not in matched:
+        matched[i] = 1
+    winning, mynumbers = cards[i]
+    matches = num_matches(cards[i][0], cards[i][1])
+    if matches > 0:
+        for j in range(i + 1, i + 1 + matches):
+            if j >= len(cards):
+                break
+            if j not in matched:
+                matched[j] = 1
+            matched[j] += matched[i]
+
+sum(map(lambda c: matched[c], matched))
+```
+
+
+
+
+    7013204
+
+
